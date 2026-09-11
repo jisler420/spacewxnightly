@@ -1,5 +1,5 @@
 # SpaceWx Nightly
 
-Known-good snapshot from spacewxtest `2e0c5d4`.
+Known-good snapshot from spacewxtest `c4b609c`.
 
 https://jisler420.github.io/spacewxnightly/
