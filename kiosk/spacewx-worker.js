@@ -63,6 +63,12 @@ function fingerprint(x) {
   return h + ":" + s.length;
 }
 
+function seriesFp(arr) {
+  if (!arr || !arr.length) return "0";
+  const last = arr[arr.length - 1];
+  return arr.length + ":" + last.t + ":" + (last.fill ? 1 : 0);
+}
+
 function mergeRows(oldArr, neu) {
   if (!neu || !neu.length) return oldArr || [];
   if (!oldArr || !oldArr.length) return neu;
@@ -177,6 +183,35 @@ function putIfChanged(out, key, value) {
   return true;
 }
 
+function putSeries(out, key, arr) {
+  if (!arr) return false;
+  const fp = seriesFp(arr);
+  if (printCache[key] === fp) return false;
+  printCache[key] = fp;
+  out[key] = arr;
+  return true;
+}
+
+async function ovationIfNew(signal) {
+  try {
+    const r = await fetch(NOAA.aurora, {
+      cache: "no-store",
+      signal: mixSignal(signal),
+      headers: { Range: "bytes=0-700" }
+    });
+    const txt = await r.text();
+    const m = txt.match(/"Observation Time"\s*:\s*"([^"]+)"/);
+    const obs = m ? m[1] : "";
+    if (r.status === 206 && obs && printCache.auroraObs === obs) return null;
+    if (r.status === 200 && txt.charAt(0) === "{") {
+      try { return { data: JSON.parse(txt) }; } catch (e) {}
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") throw e;
+  }
+  return settled(NOAA.aurora, signal);
+}
+
 async function collect(kind, signal) {
   const now = new Date();
   const stop = isoH(new Date(now.getTime() + 3600000));
@@ -190,7 +225,7 @@ async function collect(kind, signal) {
       hapi("solar_wind_mag_rt", "bt,bx_gsm,by_gsm,bz_gsm", hapiStart(series.mag), stop, signal),
       hapi("solar_wind_plasma_rt", "density,speed,temperature", hapiStart(series.plasma), stop, signal),
       settled(NOAA.dst, signal),
-      settled(NOAA.aurora, signal),
+      ovationIfNew(signal),
       settled(NOAA.kp1m, signal),
     ]);
     series.mag = mergeRows(series.mag, mag);
@@ -210,12 +245,13 @@ async function collect(kind, signal) {
     }
     let dst = dstGot;
     if (dst && dst.data) src.dst = "Kyoto";
-    if (putIfChanged(out, "mag", series.mag)) changed = true;
-    if (putIfChanged(out, "plasma", series.plasma)) changed = true;
+    if (putSeries(out, "mag", series.mag)) changed = true;
+    if (putSeries(out, "plasma", series.plasma)) changed = true;
     if (dst && putIfChanged(out, "dst", dst.data)) changed = true;
     if (aurora && aurora.data) {
       const a = aurora.data;
       const stamp = String(a["Observation Time"] || a["Forecast Time"] || "") + ":" + ((a.coordinates && a.coordinates.length) || 0);
+      printCache.auroraObs = a["Observation Time"] || "";
       if (printCache.aurora !== stamp) {
         printCache.aurora = stamp;
         out.aurora = a;
@@ -224,12 +260,14 @@ async function collect(kind, signal) {
     }
     if (kp1mGot && kp1mGot.data) {
       const rows = Array.isArray(kp1mGot.data) ? kp1mGot.data : [];
-      let best = null, bt = -1;
+      const cut = Date.now() - 20 * 60000;
+      const recent = [];
       rows.forEach(function (r) {
         const t = parseT(r && r.time_tag);
-        if (Number.isFinite(t) && t >= bt) { bt = t; best = r; }
+        const k = Number(r && (r.estimated_kp != null ? r.estimated_kp : r.kp));
+        if (Number.isFinite(t) && t >= cut && Number.isFinite(k)) recent.push({ time_tag: r.time_tag, estimated_kp: k, kp: r.kp });
       });
-      if (best && putIfChanged(out, "kp1m", { time_tag: best.time_tag, estimated_kp: best.estimated_kp, kp: best.kp })) changed = true;
+      if (recent.length && putIfChanged(out, "kp1m", recent)) changed = true;
     }
   }
 
@@ -257,8 +295,8 @@ async function collect(kind, signal) {
         src.kp = "KNMI";
       }
     } else src.kp = "NOAA";
-    if (putIfChanged(out, "enlil", series.enlil)) changed = true;
-    if (putIfChanged(out, "hp", series.hp)) changed = true;
+    if (putSeries(out, "enlil", series.enlil)) changed = true;
+    if (putSeries(out, "hp", series.hp)) changed = true;
     if (kp && putIfChanged(out, "kp", kp.data)) changed = true;
     if (sc && putIfChanged(out, "sc", sc.data)) changed = true;
     if (kf && putIfChanged(out, "kf", kf.data)) changed = true;
