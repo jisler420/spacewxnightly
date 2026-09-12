@@ -20,11 +20,30 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Stage kiosk as site root
+      - name: Stage pinned 36512f5-era kiosk as site root
+        env:
+          SRC: https://raw.githubusercontent.com/jisler420/spacewx/22d967ecad0307d0977e25c60084af3cbdcf73db/kiosk
         run: |
-          mkdir -p _site
+          mkdir -p _site/data kiosk/data
+          for f in index.html live.html settings.html spacewx-worker.js hp30.txt; do
+            curl -fsSL "$SRC/$f" -o "kiosk/$f" || true
+          done
+          # live.html is identical to index on this pin
+          if [ ! -s kiosk/live.html ] && [ -s kiosk/index.html ]; then cp kiosk/index.html kiosk/live.html; fi
+          for f in day.txt dst.json dstPred.json hemi.txt kf.json kp.json scales.json; do
+            curl -fsSL "$SRC/data/$f" -o "kiosk/data/$f" || true
+          done
+          if [ -s kiosk/index.html ]; then
+            sed -i 's/<title>SpaceWx<\/title>/<title>SpaceWx Nightly<\/title>/' kiosk/index.html kiosk/live.html
+            sed -i 's/<div class="brand">SpaceWx<\/div>/<div class="brand">SpaceWx Nightly<\/div>/' kiosk/index.html kiosk/live.html
+          fi
+          if [ -s kiosk/settings.html ]; then
+            sed -i 's/<title>SpaceWx Settings<\/title>/<title>SpaceWx Nightly Settings<\/title>/' kiosk/settings.html
+          fi
           cp -a kiosk/. _site/
           curl -fsSL https://kp.gfz.de/fileadmin/files_for_gfz_cms/Hp30_ap30_nowcast.txt -o _site/hp30.txt || true
+          test -s _site/index.html
+          grep -q "SpaceWx Nightly" _site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
