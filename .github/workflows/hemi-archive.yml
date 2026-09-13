@@ -1,9 +1,8 @@
 name: Hemi archive
 on:
   schedule:
-    - cron: "50 * * * *"
-    - cron: "20,30,40,50,55 23 * * *"
-    - cron: "0,5,10,20,30,40,50 0 * * *"
+    - cron: "50,55 23 * * *"
+    - cron: "0 0 * * *"
   workflow_dispatch:
 permissions:
   contents: write
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Merge NOAA hemi-power (36h, never replace with a short day file)
+      - name: Snapshot NOAA hemi-power at 23:55 UTC (previous evening only)
         run: python3 scripts/merge_hemi.py
       - name: Commit if changed
         run: |
@@ -26,6 +25,6 @@ jobs:
             echo "no archive change"
             exit 0
           fi
-          git commit -m "hemi-archive snapshot (36h rolling merge)"
+          git commit -m "hemi 23:55 UTC snapshot (previous evening)"
           git pull --rebase --autostash origin main || git pull --rebase origin main || true
           git push
