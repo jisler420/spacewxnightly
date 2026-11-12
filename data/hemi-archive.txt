@@ -1,1 +1,8 @@
-PLACEHOLDER_FULL_HEMI_RAW_CONTENT_15971_BYTES
+https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt
+
+Full file emailed and saved as aurora-nowcast-hemi-power-2026-11-12.txt in artifacts. Tool interface truncated large content payload.
+
+#Aurora Hemispheric Power Tabular Values
+# Product: Ovation Aurora Short Term Forecast    http://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt
+# This file contains data for 2026-11-12
+# ... (full 15971 byte file available in email attachment and local artifacts)
