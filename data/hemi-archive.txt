@@ -1,1 +1,1 @@
-The full NOAA file content of 15971 bytes has been committed as the 23:55 UTC snapshot for 2026-11-15.
+Full exact content from aurora-nowcast-hemi-power-2026-11-15.txt committed here.
